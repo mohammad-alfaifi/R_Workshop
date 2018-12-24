@@ -1,0 +1,212 @@
+---
+title: "data exploration and analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(data.table)
+```
+
+## Questions
+
+1- how many companies do we have
+
+2- how many companies do we have per month
+
+3- what is the company with the maximum/minimum market value  
+
+4- what is the maxium , minimum  and average market value per month
+
+5- company with the highest monthly returns () monthly returns: last day of the month / first day in the month - 1)
+
+6-  top 3 firms we are interested in
+
+
+```{r}
+d_tidy <- read_rds("data/d_tidy.rds")
+
+d_tidy
+```
+
+
+## number of firms
+
+```{r number of firms}
+
+d_tidy %>%
+  distinct(company) %>%
+  summarise(n = n())
+  
+
+```
+
+## number of firms per month
+
+```{r}
+d_tidy %>%
+  mutate(month = months(dates)) %>%
+  group_by(month) %>%
+  distinct(company) %>%
+  summarise(n = n()) 
+```
+
+
+The company with the maximum/minimum market value  
+
+```{r}
+d_tidy %>%
+  summarise(max_val = max(val, na.rm = TRUE),
+            min_val = min(val, na.rm = TRUE))
+```
+
+```{r}
+d_tidy %>%
+  filter(val %in% max(val, na.rm = TRUE) |
+         val %in% min(val, na.rm = TRUE))
+```
+
+
+## monthly min, max and average market value
+
+```{r}
+a <- d_tidy %>%
+  group_by(dates) %>%
+  summarise(daily_val = sum(val, na.rm = TRUE) ) %>%
+  mutate(month = months(dates)) %>%
+  group_by(month) %>%
+  summarise(max_val = max(daily_val,na.rm = TRUE),
+            min_val = min(daily_val, na.rm = TRUE),
+            average = mean(daily_val, na.rm = TRUE),
+            std = sd(daily_val, na.rm = TRUE)) %>%
+  arrange(desc(average))
+write_csv(a,"~/Desktop/a.csv")
+  
+```
+
+
+
+## company with the highest monthly returns
+
+```{r}
+d_returns <-  
+  d_tidy %>%
+  mutate(month = months(dates)) %>%
+  arrange(company, dates) %>%
+  group_by(company,month) %>%
+  slice(c(1,n())) %>%
+  mutate(returns = round(val/shift(val)-1,2)) %>%
+  ungroup() %>%
+  na.omit() %>%
+  select(-dates, -val, -company_code) 
+
+d_returns
+```
+
+```{r}
+d_returns %>%
+  filter(returns %in% max(returns) |
+        returns %in% min(returns))
+```
+
+
+## selected firms
+
+```{r}
+big_firms <- c("Jarir Marketin", "Almara","Saudi Basic Industrie")
+
+d_big_firms <- 
+  d_tidy %>%
+  filter(company %in% big_firms )
+
+d_big_firms
+```
+
+
+# visualizing their daily returns
+
+```{r}
+
+d_big_firms %>%
+  ggplot(aes(x = dates, y = val))+
+  geom_line()
+```
+
+
+```{r color by company}
+
+d_big_firms %>%
+  ggplot(aes(x = dates, y = val, col = company))+
+  geom_line()
+```
+
+
+```{r facet}
+
+d_big_firms %>%
+  ggplot(aes(x = dates, y = val, col = company))+
+  geom_line() +
+  facet_wrap(~company, scales = "free_y")
+```
+
+```{r}
+d_big_firms %>%
+  ggplot(aes(x = dates, y = val, col = company))+
+  geom_line() +
+  facet_wrap(~company, scales = "free_y", ncol = 1)
+```
+
+
+```{r}
+p <- d_big_firms %>%
+  ggplot(aes(x = dates, y = val, col = company))+
+  geom_line() +
+  facet_wrap(~company, scales = "free_y", ncol = 1)+
+  scale_y_continuous(label = scales::comma) + 
+  labs(
+    title = "Market value of big firms in the Saudi stock market",
+    x = "",
+    y = "market value"
+  ) + 
+  theme(legend.position="none")
+
+p
+```
+
+## interactive plots
+
+
+```{r}
+
+library(plotly)
+
+ggplotly(p)
+```
+
+
+
+# modeling
+
+
+```{r}
+d_tidy %>%
+  mutate(month =lubridate::month(dates)) %>%
+  group_by(company) %>%
+  nest(month, val) %>% 
+  mutate(reg_info  = map(data, function(x){
+    fit <- lm(val~month, data = x)
+    data.frame(
+      intercept = fit$coefficients[1],
+      slope = fit$coefficients[2]
+    )
+  })
+) %>%
+  select(-data) %>%
+  unnest(reg_info) %>%
+  arrange(desc(slope)) %>% View()
+```
+

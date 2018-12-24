@@ -1,0 +1,180 @@
+---
+title: "R Workshop"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## packages we need
+
+```{r}
+#install.packages("tidyverse")
+library(tidyverse)
+library(data.table)
+```
+
+## Reading data
+
+
+
+```{r reading data}
+d_stocks <- read.csv("data/saudi_stocks_2016.csv")
+d_stocks
+```
+
+- View
+
+```{r}
+d_stocks %>%
+  View()
+```
+
+- head and tail
+
+```{r}
+d_stocks %>%
+  head()
+```
+
+
+- glimpse
+
+```{r}
+d_stocks %>%
+  glimpse()
+```
+
+
+
+# Cleaning data
+
+## changing column's name
+
+```{r}
+d_stocks <-
+  d_stocks %>%
+  rename(y = X)
+d_stocks
+```
+
+## Removing columns
+
+```{r}
+d_stocks <- 
+  d_stocks %>%
+  select(-y)
+
+d_stocks
+```
+
+## Changing column's type
+
+```{r}
+d_stocks <- 
+  d_stocks %>%
+  mutate(dates = as.Date(dates))
+
+d_stocks
+```
+
+## Working with market value
+
+```{r}
+d_mkt <-
+  d_stocks %>%
+  select(dates,contains("...MARKET.VALUE"))
+
+d_mkt
+```
+
+
+## Tidy data
+
+
+```{r tidydata, out.width = '100%'}
+knitr::include_graphics("report/images:fig/tidy-1.png")
+```
+
+
+
+```{r}
+d_tidy <- 
+  d_mkt %>%
+  gather("company","val", - dates)
+
+d_tidy
+```
+
+
+```{r spread}
+
+d_tidy %>%
+  spread(company, val)
+
+```
+
+## string manipulation
+
+
+```{r seprate columns}
+d_tidy <- 
+  d_tidy %>%
+  separate(company,c("company", "market_value"), sep = "....MARKET.VALUE") %>%
+  select(-market_value)
+
+d_tidy
+```
+
+
+```{r remove dot}
+
+d_tidy <- 
+  d_tidy %>%
+  mutate(company = str_replace_all(company, "[.]", " "))
+
+d_tidy
+```
+
+```{r title}
+
+d_tidy <-
+  d_tidy %>%
+  mutate(company = str_to_title(company))
+
+d_tidy
+```
+```{r}
+d_tidy %>% glimpse()
+```
+
+
+## joins
+
+```{r tidy-data, out.width = '100%'}
+knitr::include_graphics("report/images:fig/join-setup2.png")
+```
+
+```{r}
+d_firms_code <- read_csv("data/firms_codes.csv")
+d_firms_code
+```
+
+
+
+```{r}
+d_tidy <-
+  d_tidy %>%
+  left_join(d_firms_code)
+
+d_tidy
+```
+
+
+
+
+
+
+
