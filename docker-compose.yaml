@@ -1,0 +1,12 @@
+version: "3.5"
+services:
+  rstudio:
+    environment:
+      - USER=rstudio
+      - PASSWORD=password
+    image: "rocker/tidyverse:latest"
+    volumes:
+      - ./rstuido:/home/rstuido/
+    container_name: rstudio
+    ports:
+      - 8787:8787
